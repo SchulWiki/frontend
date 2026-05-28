@@ -1,16 +1,66 @@
-# React + Vite
+# SchulWiki — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite frontend for the SchulWiki platform.
 
-Currently, two official plugins are available:
+## Voraussetzungen
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- [Node.js](https://nodejs.org) **20 oder höher**
+- Backend läuft lokal auf `http://localhost:8080` (oder angepasste URL in `.env.local`)
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Linux / macOS
+chmod +x setup.sh && ./setup.sh
 
-## Expanding the ESLint configuration
+# Windows (PowerShell)
+npm install
+copy .env.example .env.local   # dann VITE_API_BASE_URL anpassen
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Das Script installiert alle Abhängigkeiten und legt `.env.local` aus `.env.example` an.
+
+## Starten
+
+```bash
+npm run dev        # Entwicklungsserver → http://localhost:5173
+npm run build      # Produktions-Build
+npm run preview    # Build lokal vorschauen
+```
+
+## Tests & Qualität
+
+```bash
+npm test               # Tests im Watch-Modus
+npx vitest run         # Tests einmalig ausführen
+npm run typecheck      # TypeScript-Prüfung
+npm run lint           # ESLint
+npm run test:coverage  # Testabdeckung
+```
+
+## Umgebungsvariablen
+
+| Variable            | Standard                  | Beschreibung              |
+|---------------------|---------------------------|---------------------------|
+| `VITE_API_BASE_URL` | `http://localhost:8080`   | URL des Backend-Servers   |
+
+Lokale Überschreibungen in `.env.local` (wird nicht eingecheckt).
+
+## Projektstruktur
+
+```
+src/
+├── components/        # Wiederverwendbare UI-Komponenten (shadcn/ui + Layout)
+├── features/
+│   ├── auth/          # AuthContext, AuthProvider, useAuth, authApi
+│   ├── admin/         # adminApi (Benutzerverwaltung)
+│   └── wiki/          # wikiApi, useRole, WikiEntry-Komponenten
+├── lib/               # axiosInstance, tokenStore, Fingerprint
+├── pages/             # Seitenkomponenten (eine pro Route)
+└── router/            # AppRouter, ROUTES-Konstanten
+```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) läuft bei jedem Push und Pull Request:
+TypeScript-Prüfung → Tests (Vitest).

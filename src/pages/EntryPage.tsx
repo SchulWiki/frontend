@@ -1,5 +1,6 @@
-import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Edit, Trash2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
@@ -35,6 +36,9 @@ function EntryPageSkeleton() {
 export function EntryPage() {
   const { id } = useParams<{ id: string }>()
   const entryId = Number(id)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [isConfirming, setIsConfirming] = useState(false)
 
   const { canEdit, canDelete, canCreate } = useRole()
 
@@ -52,6 +56,15 @@ export function EntryPage() {
     queryKey: ['entries', entryId],
     queryFn: () => wikiApi.getChildren(entryId),
     enabled: !isNaN(entryId),
+  })
+
+  const { mutate: deleteEntry, isPending: isDeleting, isError: deleteError } = useMutation({
+    mutationFn: () => wikiApi.deleteEntry(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entries', entry?.parentId ?? null] })
+      queryClient.invalidateQueries({ queryKey: ['entry', entryId] })
+      navigate(entry?.parentId ? ROUTES.ENTRY(entry.parentId) : ROUTES.HOME)
+    },
   })
 
   if (entryLoading) return <EntryPageSkeleton />
@@ -78,22 +91,24 @@ export function EntryPage() {
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-bold leading-tight">{entry.title}</h1>
-          <div className="flex items-center gap-2 shrink-0">
-            {canEdit(entry) && (
-              <Button asChild variant="outline" size="sm">
-                <Link to={ROUTES.ENTRY_EDIT(entryId)}>
-                  <Edit className="h-4 w-4" />
-                  Bearbeiten
-                </Link>
-              </Button>
-            )}
-            {canDelete(entry) && (
-              <Button variant="destructive" size="sm">
-                <Trash2 className="h-4 w-4" />
-                Löschen
-              </Button>
-            )}
-          </div>
+          {!isConfirming && (
+            <div className="flex items-center gap-2 shrink-0">
+              {canEdit(entry) && (
+                <Button asChild variant="outline" size="sm">
+                  <Link to={ROUTES.ENTRY_EDIT(entryId)}>
+                    <Edit className="h-4 w-4" />
+                    Bearbeiten
+                  </Link>
+                </Button>
+              )}
+              {canDelete(entry) && (
+                <Button variant="destructive" size="sm" onClick={() => setIsConfirming(true)}>
+                  <Trash2 className="h-4 w-4" />
+                  Löschen
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -101,6 +116,40 @@ export function EntryPage() {
           <span>Zuletzt geändert: {formattedDate}</span>
         </div>
       </div>
+
+      {/* Delete confirmation panel */}
+      {isConfirming && (
+        <div className="rounded-lg border border-destructive p-4 space-y-3 bg-destructive/5">
+          <p className="text-sm font-medium">
+            Dieser Eintrag und alle Untereinträge werden unwiderruflich gelöscht.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsConfirming(false)}
+              disabled={isDeleting}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => deleteEntry()}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Wird gelöscht…' : 'Endgültig löschen'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete error */}
+      {deleteError && (
+        <Alert variant="destructive">
+          Eintrag konnte nicht gelöscht werden. Bitte später erneut versuchen.
+        </Alert>
+      )}
 
       {/* Markdown content */}
       <MarkdownPreview content={entry.content} />

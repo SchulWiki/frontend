@@ -13,10 +13,11 @@ vi.mock('@/features/wiki/components/Breadcrumb', () => ({
   Breadcrumb: () => <nav aria-label="Breadcrumb">Breadcrumb</nav>,
 }))
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRole } from '@/features/wiki/useRole'
 
 const mockUseQuery = vi.mocked(useQuery)
+const mockUseMutation = vi.mocked(useMutation)
 const mockUseRole = vi.mocked(useRole)
 
 const mockEntry = {
@@ -107,6 +108,13 @@ function setupQueries(
 describe('EntryPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockUseMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useMutation>)
+    vi.mocked(useQueryClient).mockReturnValue({ invalidateQueries: vi.fn() } as ReturnType<typeof useQueryClient>)
   })
 
   it('shows skeleton while entry is loading', () => {
