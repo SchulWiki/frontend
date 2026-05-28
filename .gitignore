@@ -32,3 +32,9 @@ pnpm-debug.log*
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# ai sachen
+_bmad/
+_bmad-output/
+.claude/
+backend/
+docs/

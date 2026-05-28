@@ -24,9 +24,13 @@ function processQueue(error: unknown, token: string | null): void {
   failedQueue = []
 }
 
-axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = tokenStore.getAccessToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+    const fingerprint = await getDeviceFingerprint()
+    config.headers['X-Device-Fingerprint'] = fingerprint
+  }
   return config
 })
 

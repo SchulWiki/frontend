@@ -2,6 +2,9 @@ export type User = {
   id: number
   username: string
   email: string
+  firstName: string
+  lastName: string
+  role: string
 }
 
 export type AuthResponse = {
@@ -15,7 +18,12 @@ export type LoginRequest = {
 }
 
 export type RegisterRequest = {
-  username: string
-  password: string
+  validationCredentialsRequest: {
+    username: string
+    password: string
+    confirmPassword: string
+  }
   email: string
+  firstName: string
+  lastName: string
 }
