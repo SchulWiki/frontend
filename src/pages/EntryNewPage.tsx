@@ -1,9 +1,8 @@
-import { useEffect } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
@@ -20,59 +19,31 @@ const entrySchema = z.object({
 
 type EntryFormValues = z.infer<typeof entrySchema>
 
-function EditPageSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse max-w-3xl">
-      <div className="h-8 bg-muted rounded w-1/3" />
-      <div className="space-y-2">
-        <div className="h-4 bg-muted rounded w-16" />
-        <div className="h-9 bg-muted rounded" />
-      </div>
-      <div className="space-y-2">
-        <div className="h-4 bg-muted rounded w-16" />
-        <div className="h-48 bg-muted rounded" />
-      </div>
-    </div>
-  )
-}
-
-export function EntryEditPage() {
-  const { id } = useParams<{ id: string }>()
-  const entryId = Number(id)
+export function EntryNewPage() {
+  const { canCreate } = useRole()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { canEdit } = useRole()
+  const [searchParams] = useSearchParams()
 
-  const { data: entry, isLoading } = useQuery({
-    queryKey: ['entry', entryId],
-    queryFn: () => wikiApi.getEntry(entryId),
-    enabled: !isNaN(entryId),
-  })
+  const rawParentId = searchParams.get('parentId')
+  const parentId = rawParentId ? Number(rawParentId) : null
 
   const form = useForm<EntryFormValues>({
     resolver: zodResolver(entrySchema),
     defaultValues: { title: '', content: '' },
   })
 
-  useEffect(() => {
-    if (entry) {
-      form.reset({ title: entry.title, content: entry.content })
-    }
-  }, [entry, form])
-
   const { mutate, isPending, isError } = useMutation({
     mutationFn: (values: EntryFormValues) =>
-      wikiApi.updateEntry(entryId, { title: values.title, content: values.content }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entry', entryId] })
-      navigate(ROUTES.ENTRY(entryId))
+      wikiApi.createEntry({ title: values.title, content: values.content, parentId }),
+    onSuccess: (newEntry) => {
+      queryClient.invalidateQueries({ queryKey: ['entries', parentId] })
+      navigate(ROUTES.ENTRY(newEntry.id))
     },
   })
 
-  if (isLoading) return <EditPageSkeleton />
-
-  if (entry && !canEdit(entry)) {
-    return <Navigate to={ROUTES.ENTRY(entryId)} replace />
+  if (!canCreate()) {
+    return <Navigate to={ROUTES.HOME} replace />
   }
 
   const onSubmit = (values: EntryFormValues) => {
@@ -81,11 +52,11 @@ export function EntryEditPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-bold">Eintrag bearbeiten</h1>
+      <h1 className="text-2xl font-bold">{parentId ? 'Kindelement erstellen' : 'Neuer Eintrag'}</h1>
 
       {isError && (
         <Alert variant="destructive">
-          Eintrag konnte nicht gespeichert werden. Bitte später erneut versuchen.
+          Eintrag konnte nicht erstellt werden. Bitte später erneut versuchen.
         </Alert>
       )}
 
@@ -106,7 +77,7 @@ export function EntryEditPage() {
           />
 
           <FormItem>
-            <FormLabel>Inhalt</FormLabel>
+            <FormLabel htmlFor="content-editor">Inhalt</FormLabel>
             <Controller
               control={form.control}
               name="content"
@@ -129,7 +100,7 @@ export function EntryEditPage() {
             <Button type="submit" disabled={isPending}>
               {isPending ? 'Speichern…' : 'Speichern'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.ENTRY(entryId))}>
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>
               Abbrechen
             </Button>
           </div>
