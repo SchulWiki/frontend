@@ -110,7 +110,6 @@ describe('ProfilePage — Passwort section', () => {
   })
 
   function getPasswordFields() {
-    const inputs = screen.getAllByRole('textbox', { hidden: true })
     const passwordInputs = document.querySelectorAll('input[type="password"]')
     return {
       current: passwordInputs[0] as HTMLInputElement,

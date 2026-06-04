@@ -45,13 +45,16 @@ describe('Navbar', () => {
       isLoading: false,
       login: vi.fn(),
       logout: vi.fn(),
+      refreshUser: vi.fn(),
     })
     mockUseRole.mockReturnValue({
       isSysAdmin: () => false,
       isAdmin: () => false,
-      canEdit: () => false,
-      canDelete: () => false,
-      canCreate: () => true,
+      canEditRecord: () => false,
+      canDeleteRecord: () => false,
+      canCreateRecord: () => true,
+      canManageDirectory: () => false,
+      canDeleteNonEmptyDirectory: () => false,
     })
   })
 
@@ -103,9 +106,11 @@ describe('Navbar', () => {
     mockUseRole.mockReturnValue({
       isSysAdmin: () => true,
       isAdmin: () => true,
-      canEdit: () => true,
-      canDelete: () => true,
-      canCreate: () => true,
+      canEditRecord: () => true,
+      canDeleteRecord: () => true,
+      canCreateRecord: () => true,
+      canManageDirectory: () => true,
+      canDeleteNonEmptyDirectory: () => true,
     })
     renderNavbar()
     expect(screen.getByText('Benutzerverwaltung')).toBeInTheDocument()
