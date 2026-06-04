@@ -1,5 +1,5 @@
 import { useAuth } from '@/features/auth/useAuth'
-import type { WikiEntry } from './wiki.types'
+import type { WikiRecord } from './wiki.types'
 
 const ROLE_WEIGHTS: Record<string, number> = {
   SYS_ADMIN: 4,
@@ -13,11 +13,14 @@ export function useRole() {
   const weight = user ? (ROLE_WEIGHTS[user.role] ?? 0) : 0
 
   return {
-    canEdit: (entry: WikiEntry) =>
-      weight >= 3 || (weight === 2 && entry.authorId === user?.id),
-    canDelete: (entry: WikiEntry) =>
-      weight >= 3 || (weight === 2 && entry.authorId === user?.id),
-    canCreate: () => weight >= 2,
+    // Records: any EDITOR+ can edit title/content; only ADMIN+ or creator can delete
+    canEditRecord: () => weight >= 2,
+    canDeleteRecord: (record: WikiRecord) =>
+      weight >= 3 || (weight === 2 && record.createdBy.id === user?.id),
+    canCreateRecord: () => weight >= 2,
+    // Directories: ADMIN+ for create/rename; SYS_ADMIN for deleting non-empty
+    canManageDirectory: () => weight >= 3,
+    canDeleteNonEmptyDirectory: () => weight >= 4,
     isAdmin: () => weight >= 3,
     isSysAdmin: () => weight === 4,
   }

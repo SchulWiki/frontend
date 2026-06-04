@@ -1,58 +1,81 @@
 import { axiosInstance } from '@/lib/http/axiosInstance'
-import type { SearchResultEntry, WikiEntry } from './wiki.types'
+import type { Directory, DirectoryLight, WikiRecord, RecordSearchResult } from './wiki.types'
 
 export const wikiApi = {
-  async getRootEntries(): Promise<WikiEntry[]> {
-    const response = await axiosInstance.get<WikiEntry[]>('/api/entries', {
-      params: { parentId: 'null' },
-    })
-    return response.data
+  async getRoot(): Promise<Directory> {
+    const res = await axiosInstance.get<Directory>('/api/directories/root')
+    return res.data
   },
 
-  async getChildren(parentId: number): Promise<WikiEntry[]> {
-    const response = await axiosInstance.get<WikiEntry[]>('/api/entries', {
-      params: { parentId },
-    })
-    return response.data
+  async getDirectory(id: number): Promise<Directory> {
+    const res = await axiosInstance.get<Directory>(`/api/directories/${id}`)
+    return res.data
   },
 
-  async getEntry(id: number): Promise<WikiEntry> {
-    const response = await axiosInstance.get<WikiEntry>(`/api/entries/${id}`)
-    return response.data
+  async createDirectory(name: string, parentDirectoryId: number): Promise<Directory> {
+    const res = await axiosInstance.post<Directory>('/api/directories', { name, parentDirectoryId })
+    return res.data
   },
 
-  async createEntry(data: {
+  async updateDirectory(id: number, name: string): Promise<Directory> {
+    const res = await axiosInstance.patch<Directory>(`/api/directories/${id}`, { name })
+    return res.data
+  },
+
+  async deleteDirectory(id: number): Promise<void> {
+    await axiosInstance.delete(`/api/directories/${id}`)
+  },
+
+  async getRecord(id: number): Promise<WikiRecord> {
+    const res = await axiosInstance.get<WikiRecord>(`/api/records/${id}`)
+    return res.data
+  },
+
+  async createRecord(data: {
     title: string
     content: string
-    parentId: number | null
-  }): Promise<WikiEntry> {
-    const response = await axiosInstance.post<WikiEntry>('/api/entries', data)
-    return response.data
+    parentDirectoryId: number
+  }): Promise<WikiRecord> {
+    const res = await axiosInstance.post<WikiRecord>('/api/records', data)
+    return res.data
   },
 
-  async updateEntry(
-    id: number,
-    data: { title: string; content: string }
-  ): Promise<WikiEntry> {
-    const response = await axiosInstance.patch<WikiEntry>(`/api/entries/${id}`, data)
-    return response.data
+  async updateRecord(id: number, title: string): Promise<WikiRecord> {
+    const res = await axiosInstance.patch<WikiRecord>(`/api/records/${id}`, { title })
+    return res.data
   },
 
-  async deleteEntry(id: number): Promise<void> {
-    await axiosInstance.delete(`/api/entries/${id}`)
+  async updateRecordContent(id: number, content: string): Promise<WikiRecord> {
+    const res = await axiosInstance.patch<WikiRecord>(`/api/records/${id}/content`, { content })
+    return res.data
   },
 
-  async search(query: string): Promise<SearchResultEntry[]> {
-    const response = await axiosInstance.get<SearchResultEntry[]>('/api/entries/search', {
+  async deleteRecord(id: number): Promise<void> {
+    await axiosInstance.delete(`/api/records/${id}`)
+  },
+
+  async searchRecords(query: string): Promise<RecordSearchResult[]> {
+    const res = await axiosInstance.get<RecordSearchResult[]>('/api/records/search', {
       params: { q: query },
     })
-    return response.data
+    return res.data
   },
 
-  async getAncestors(parentId: number | null): Promise<WikiEntry[]> {
+  async searchDirectories(query: string): Promise<DirectoryLight[]> {
+    const res = await axiosInstance.get<DirectoryLight[]>('/api/directories/search', {
+      params: { q: query },
+    })
+    return res.data
+  },
+
+  // Recursively fetches parent directories for breadcrumb — stops at root (parentDirectoryId === null)
+  async getDirectoryAncestors(
+    parentId: number | null
+  ): Promise<Array<{ id: number; name: string }>> {
     if (parentId === null) return []
-    const parent = await wikiApi.getEntry(parentId)
-    const grandparents = await wikiApi.getAncestors(parent.parentId)
-    return [...grandparents, parent]
+    const dir = await wikiApi.getDirectory(parentId)
+    if (dir.parentDirectoryId === null) return []
+    const grandParents = await wikiApi.getDirectoryAncestors(dir.parentDirectoryId)
+    return [...grandParents, { id: dir.id, name: dir.name }]
   },
 }

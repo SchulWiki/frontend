@@ -3,17 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Home } from 'lucide-react'
 import { wikiApi } from '../wikiApi'
 import { ROUTES } from '@/router/routes'
-import type { WikiEntry } from '../wiki.types'
 
 type Props = {
-  entry: WikiEntry
+  parentDirectoryId: number | null
+  currentName: string
 }
 
-export function Breadcrumb({ entry }: Props) {
+export function WikiBreadcrumb({ parentDirectoryId, currentName }: Props) {
   const { data: ancestors = [], isLoading } = useQuery({
-    queryKey: ['ancestors', 'entry', entry.id],
-    queryFn: () => wikiApi.getAncestors(entry.parentId),
-    enabled: entry.parentId !== null,
+    queryKey: ['breadcrumb', parentDirectoryId],
+    queryFn: () => wikiApi.getDirectoryAncestors(parentDirectoryId),
+    enabled: parentDirectoryId !== null,
   })
 
   if (isLoading) {
@@ -43,19 +43,17 @@ export function Breadcrumb({ entry }: Props) {
           <li key={ancestor.id} className="flex items-center gap-0.5">
             <ChevronRight className="h-3.5 w-3.5 shrink-0" />
             <Link
-              to={ROUTES.ENTRY(ancestor.id)}
+              to={ROUTES.DIRECTORY(ancestor.id)}
               className="hover:text-foreground transition-colors max-w-[160px] truncate"
             >
-              {ancestor.title}
+              {ancestor.name}
             </Link>
           </li>
         ))}
 
         <li className="flex items-center gap-0.5">
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-foreground font-medium max-w-[200px] truncate">
-            {entry.title}
-          </span>
+          <span className="text-foreground font-medium max-w-[200px] truncate">{currentName}</span>
         </li>
       </ol>
     </nav>

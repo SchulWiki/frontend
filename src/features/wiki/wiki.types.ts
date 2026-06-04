@@ -1,15 +1,47 @@
-export type WikiEntry = {
+export type UserLight = {
+  id: number
+  firstName: string
+  lastName: string
+}
+
+export type DirectoryLight = {
+  id: number
+  name: string
+  childCount: number
+}
+
+export type RecordLight = {
+  id: number
+  title: string
+}
+
+export type Directory = {
+  id: number
+  name: string
+  parentDirectoryId: number | null
+  subDirectories: DirectoryLight[]
+  records: RecordLight[]
+  createdAt: string
+  createdBy: UserLight
+  updatedAt: string
+  updatedBy: UserLight
+}
+
+export type WikiRecord = {
   id: number
   title: string
   content: string
-  authorId: number
-  authorName?: string
-  parentId: number | null
+  parentDirectoryId: number
+  createdAt: string
+  createdBy: UserLight
   updatedAt: string
-  childCount?: number
+  updatedBy: UserLight
 }
 
-export type SearchResultEntry = WikiEntry & {
-  excerpt?: string
-  ancestors?: Array<{ id: number; title: string }>
+export type RecordSearchResult = {
+  id: number
+  title: string
+  excerpt: string
+  parentDirectoryId: number
+  parentDirectoryName: string
 }

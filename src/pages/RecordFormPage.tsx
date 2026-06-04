@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,14 +13,14 @@ import { wikiApi } from '@/features/wiki/wikiApi'
 import { useRole } from '@/features/wiki/useRole'
 import { ROUTES } from '@/router/routes'
 
-const entrySchema = z.object({
+const schema = z.object({
   title: z.string().min(3, 'Titel muss mindestens 3 Zeichen haben.').max(200, 'Titel darf maximal 200 Zeichen haben.'),
   content: z.string().min(10, 'Inhalt muss mindestens 10 Zeichen haben.'),
 })
 
-type EntryFormValues = z.infer<typeof entrySchema>
+type FormValues = z.infer<typeof schema>
 
-function EditPageSkeleton() {
+function FormSkeleton() {
   return (
     <div className="space-y-6 animate-pulse max-w-3xl">
       <div className="h-8 bg-muted rounded w-1/3" />
@@ -36,52 +36,71 @@ function EditPageSkeleton() {
   )
 }
 
-export function EntryEditPage() {
+export function RecordFormPage() {
   const { id } = useParams<{ id: string }>()
-  const entryId = Number(id)
+  const [searchParams] = useSearchParams()
+  const isEditing = !!id
+  const recordId = id ? Number(id) : undefined
+  const parentDirectoryId = searchParams.get('parentId') ? Number(searchParams.get('parentId')) : undefined
+
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { canEdit } = useRole()
+  const { canCreateRecord, canEditRecord } = useRole()
 
-  const { data: entry, isLoading } = useQuery({
-    queryKey: ['entry', entryId],
-    queryFn: () => wikiApi.getEntry(entryId),
-    enabled: !isNaN(entryId),
+  const { data: record, isLoading } = useQuery({
+    queryKey: ['record', recordId],
+    queryFn: () => wikiApi.getRecord(recordId!),
+    enabled: isEditing && !isNaN(recordId!),
   })
 
-  const form = useForm<EntryFormValues>({
-    resolver: zodResolver(entrySchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: { title: '', content: '' },
   })
 
   useEffect(() => {
-    if (entry) {
-      form.reset({ title: entry.title, content: entry.content })
+    if (record) {
+      form.reset({ title: record.title, content: record.content })
     }
-  }, [entry, form])
+  }, [record, form])
 
-  const { mutate, isPending, isError } = useMutation({
-    mutationFn: (values: EntryFormValues) =>
-      wikiApi.updateEntry(entryId, { title: values.title, content: values.content }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entry', entryId] })
-      navigate(ROUTES.ENTRY(entryId))
+  const createMutation = useMutation({
+    mutationFn: (values: FormValues) =>
+      wikiApi.createRecord({ title: values.title, content: values.content, parentDirectoryId: parentDirectoryId! }),
+    onSuccess: (newRecord) => {
+      queryClient.invalidateQueries({ queryKey: ['directory', parentDirectoryId] })
+      navigate(ROUTES.RECORD(newRecord.id))
     },
   })
 
-  if (isLoading) return <EditPageSkeleton />
+  const editMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      await wikiApi.updateRecord(recordId!, values.title)
+      return wikiApi.updateRecordContent(recordId!, values.content)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['record', recordId] })
+      navigate(ROUTES.RECORD(recordId!))
+    },
+  })
 
-  if (entry && !canEdit(entry)) {
-    return <Navigate to={ROUTES.ENTRY(entryId)} replace />
-  }
+  if (!isEditing && !canCreateRecord()) return <Navigate to={ROUTES.HOME} replace />
+  if (isEditing && !canEditRecord()) return <Navigate to={ROUTES.RECORD(recordId!)} replace />
+  if (isLoading) return <FormSkeleton />
 
-  const onSubmit = (values: EntryFormValues) => {
-    mutate(values, {})
+  const mutation = isEditing ? editMutation : createMutation
+  const isError = mutation.isError
+  const isPending = mutation.isPending
+
+  const onSubmit = (values: FormValues) => {
+    mutation.mutate(values)
   }
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-bold">Eintrag bearbeiten</h1>
+      <h1 className="text-2xl font-bold">
+        {isEditing ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}
+      </h1>
 
       {isError && (
         <Alert variant="destructive">
@@ -129,7 +148,7 @@ export function EntryEditPage() {
             <Button type="submit" disabled={isPending}>
               {isPending ? 'Speichern…' : 'Speichern'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate(ROUTES.ENTRY(entryId))}>
+            <Button type="button" variant="outline" onClick={() => navigate(-1)}>
               Abbrechen
             </Button>
           </div>
