@@ -75,8 +75,12 @@ export function RecordFormPage() {
 
   const editMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      await wikiApi.updateRecord(recordId!, values.title)
-      return wikiApi.updateRecordContent(recordId!, values.content)
+      const titleChanged = values.title !== record?.title
+      const contentChanged = values.content !== record?.content
+      if (!titleChanged && !contentChanged) return null
+      if (titleChanged) await wikiApi.updateRecord(recordId!, values.title)
+      if (contentChanged) await wikiApi.updateRecordContent(recordId!, values.content)
+      return null
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['record', recordId] })
