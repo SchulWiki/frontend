@@ -19,6 +19,7 @@ const mockUser = {
   firstName: 'Anna',
   lastName: 'Müller',
   role: 'EDITOR',
+  deleted: false,
 }
 
 const mockRefreshUser = vi.fn()

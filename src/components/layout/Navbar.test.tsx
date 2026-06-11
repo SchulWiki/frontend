@@ -26,6 +26,7 @@ const defaultUser = {
   firstName: 'Test',
   lastName: 'User',
   role: 'EDITOR',
+  deleted: false,
 }
 
 function renderNavbar() {
