@@ -14,6 +14,7 @@ type GetUsersParams = {
   size?: number
   search?: string
   role?: string
+  deleted?: boolean
 }
 
 export const adminApi = {
@@ -23,13 +24,13 @@ export const adminApi = {
     query.set('size', String(params.size ?? 20))
     if (params.search) query.set('search', params.search)
     if (params.role) query.set('role', params.role)
+    if (params.deleted) query.set('deleted', 'true')
     const response = await axiosInstance.get<UsersPage>(`/api/users?${query}`)
     return response.data
   },
 
-  async updateUserRole(id: number, role: string): Promise<User> {
-    const response = await axiosInstance.patch<User>(`/api/users/${id}/role`, { role })
-    return response.data
+  async updateUserRole(id: number, role: string): Promise<void> {
+    await axiosInstance.patch(`/api/users/${id}/role`, { role })
   },
 
   async deleteUser(id: number): Promise<void> {

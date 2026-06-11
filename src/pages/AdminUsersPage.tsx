@@ -16,7 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
   SYS_ADMIN: 'System-Admin',
 }
 
-const ASSIGNABLE_ROLES = ['GUEST', 'EDITOR', 'ADMIN', 'SYS_ADMIN']
+const ASSIGNABLE_ROLES = ['GUEST', 'EDITOR', 'ADMIN']
 
 const FILTER_OPTIONS = [
   { value: '', label: 'Alle Rollen' },
@@ -85,6 +85,7 @@ export function AdminUsersPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [page, setPage] = useState(0)
   const [apiError, setApiError] = useState<string | null>(null)
   const [confirmRole, setConfirmRole] = useState<ConfirmRole | null>(null)
@@ -99,9 +100,9 @@ export function AdminUsersPage() {
   }, [searchInput])
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['admin-users', page, search, roleFilter],
+    queryKey: ['admin-users', page, search, roleFilter, showDeleted],
     queryFn: () =>
-      adminApi.getUsers({ page, size: 20, search: search || undefined, role: roleFilter || undefined }),
+      adminApi.getUsers({ page, size: 20, search: search || undefined, role: roleFilter || undefined, deleted: showDeleted || undefined }),
     enabled: isSysAdmin(),
   })
 
@@ -140,7 +141,7 @@ export function AdminUsersPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         <Input
           placeholder="Suche nach Benutzername oder E-Mail…"
           value={searchInput}
@@ -156,6 +157,15 @@ export function AdminUsersPage() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-auto">
+          <input
+            type="checkbox"
+            checked={showDeleted}
+            onChange={e => { setShowDeleted(e.target.checked); setPage(0) }}
+            className="h-4 w-4 rounded border-input accent-primary"
+          />
+          Gelöschte anzeigen
+        </label>
       </div>
 
       {/* Table */}
@@ -183,27 +193,55 @@ export function AdminUsersPage() {
             ) : (
               data?.content.map(user => {
                 const isOwnAccount = user.id === currentUser?.id
+                const isSysAdminUser = user.role === 'SYS_ADMIN'
+                const isDeleted = user.deleted
+                const roleChangeDisabled = isOwnAccount || isSysAdminUser || isDeleted
+                const deleteDisabled = isOwnAccount || isSysAdminUser || isDeleted
+                const roleChangeTitle = isOwnAccount
+                  ? 'Eigene Rolle kann nicht geändert werden.'
+                  : isSysAdminUser
+                  ? 'Die SYS_ADMIN-Rolle kann nicht geändert werden.'
+                  : isDeleted
+                  ? 'Gelöschte Benutzer können nicht bearbeitet werden.'
+                  : undefined
+                const deleteTitle = isOwnAccount
+                  ? 'Eigenen Account kann nicht gelöscht werden.'
+                  : isSysAdminUser
+                  ? 'SYS_ADMIN-Benutzer können nicht gelöscht werden.'
+                  : isDeleted
+                  ? 'Bereits gelöscht.'
+                  : undefined
                 return (
-                  <tr key={user.id} className="border-b hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium">{user.username}</td>
+                  <tr key={user.id} className={`border-b transition-colors ${isDeleted ? 'opacity-50' : 'hover:bg-muted/30'}`}>
+                    <td className="px-4 py-3 font-medium">
+                      <span className={isDeleted ? 'line-through text-muted-foreground' : undefined}>
+                        {user.username}
+                      </span>
+                      {isDeleted && (
+                        <span className="ml-2 text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">
+                          Gelöscht
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                     <td className="px-4 py-3">{user.firstName}</td>
                     <td className="px-4 py-3">{user.lastName}</td>
                     <td className="px-4 py-3">
-                      <span
-                        title={isOwnAccount ? 'Eigene Rolle kann nicht geändert werden.' : undefined}
-                      >
+                      <span title={roleChangeTitle}>
                         <select
                           value={user.role}
-                          disabled={isOwnAccount}
+                          disabled={roleChangeDisabled}
                           onChange={e =>
                             setConfirmRole({ userId: user.id, username: user.username, newRole: e.target.value })
                           }
                           className="rounded border border-input bg-transparent px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {ASSIGNABLE_ROLES.map(r => (
-                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                          ))}
+                          {isSysAdminUser
+                            ? <option value="SYS_ADMIN">{ROLE_LABELS['SYS_ADMIN']}</option>
+                            : ASSIGNABLE_ROLES.map(r => (
+                                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                              ))
+                          }
                         </select>
                       </span>
                     </td>
@@ -211,8 +249,8 @@ export function AdminUsersPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        disabled={isOwnAccount}
-                        title={isOwnAccount ? 'Eigenen Account kann nicht gelöscht werden.' : undefined}
+                        disabled={deleteDisabled}
+                        title={deleteTitle}
                         onClick={() => setConfirmDelete({ userId: user.id, username: user.username })}
                       >
                         Löschen
